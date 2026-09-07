@@ -1,0 +1,87 @@
+name: upstream-release
+
+# Opens an issue when a new Baikal release appears upstream.
+#
+# Deliberately not a version bump: the build verifies the download against
+# BAIKAL_SHA256, and no bot can compute that checksum for a release it has not
+# downloaded. A bot that raised the version and left the checksum behind would
+# produce a red build and, worse, train us to ignore it.
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compare the pinned version against the latest upstream release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_REPO: sabre-io/Baikal
+        run: |
+          set -euo pipefail
+
+          current="$(sed -n 's/^ARG BAIKAL_VERSION=//p' Dockerfile)"
+          if [ -z "${current}" ]; then
+            echo "::error file=Dockerfile::ARG BAIKAL_VERSION not found"
+            exit 1
+          fi
+
+          # The /releases/latest endpoint skips pre-releases, which is what we
+          # want: a release candidate is not a reason to open an issue.
+          latest="$(gh api "repos/${UPSTREAM_REPO}/releases/latest" --jq '.tag_name')"
+          echo "pinned=${current} upstream=${latest}"
+
+          if [ "${current}" = "${latest}" ]; then
+            echo "Up to date."
+            exit 0
+          fi
+
+          title="Baikal ${latest} released upstream"
+
+          # --state all, matched on the exact title: a closed issue must not
+          # come back every Monday. Matching titles rather than a label keeps
+          # this working in a repository that has no labels set up.
+          if gh issue list --state all --limit 100 --json title --jq '.[].title' \
+              | grep -Fxq "${title}"; then
+            echo "Issue \"${title}\" already exists."
+            exit 0
+          fi
+
+          archive="baikal-${latest}.zip"
+          url="https://github.com/${UPSTREAM_REPO}/releases/download/${latest}/${archive}"
+
+          # Every list item stays on one line on purpose. A wrapped
+          # continuation line would be indented far enough for GitHub to
+          # render the prose as a code block.
+          gh issue create --title "${title}" --body "$(cat <<BODY
+          Upstream released **${latest}**; this image is pinned to \`${current}\`.
+
+          - Release notes: https://github.com/${UPSTREAM_REPO}/releases/tag/${latest}
+          - Archive: ${url}
+
+          ## Steps
+
+          - [ ] Compute the checksum of the new archive, with the commands below.
+          - [ ] Raise \`BAIKAL_VERSION\` **and** \`BAIKAL_SHA256\` in the Dockerfile together. Either one alone fails the build, which is the intended behaviour.
+          - [ ] Check the release for new PHP extension requirements and for changes to \`html/.htaccess\` - against the source in the archive, not against issues or blog posts.
+          - [ ] Let the build publish the image, then pin the new \`tag@sha256:digest\` in the consuming deployment repository.
+          - [ ] In that same change, move \`configured_version\` in \`baikal.yaml\` to ${latest}. If it lags behind the image, Baikal shows the upgrade wizard after every sync.
+
+          Checksum:
+
+              curl -fsSLO ${url}
+              sha256sum ${archive}
+
+          Opened automatically by \`.github/workflows/upstream-release.yml\`.
+          BODY
+          )"
+
+          echo "Opened issue: ${title}"

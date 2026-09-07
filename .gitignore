@@ -1,0 +1,8 @@
+# This repository is public and contains no runtime state - the list is short
+# on purpose.
+
+# macOS finder droppings, which have no business in a public history.
+.DS_Store
+
+# Release archives, downloaded locally to compute BAIKAL_SHA256.
+*.zip

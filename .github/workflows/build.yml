@@ -1,0 +1,181 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  # The package is named after the application, not after this repository, so
+  # the pull reference stays ghcr.io/<owner>/baikal.
+  IMAGE_NAME: baikal
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # The Dockerfile is the single source of truth for the version. A second
+      # copy in this workflow would drift, and the drift would surface only as
+      # a mistagged image in the registry.
+      - name: Collect image metadata
+        id: meta
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          version="$(sed -n 's/^ARG BAIKAL_VERSION=//p' Dockerfile)"
+          if [ -z "${version}" ]; then
+            echo "::error file=Dockerfile::ARG BAIKAL_VERSION not found"
+            exit 1
+          fi
+
+          # Registry namespaces have to be lowercase; GitHub account names do
+          # not have to be.
+          owner="$(printf '%s' "${REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          ghcr_image="ghcr.io/${owner}/${IMAGE_NAME}"
+
+          {
+            echo "version=${version}"
+            echo "ghcr_image=${ghcr_image}"
+            echo "push_dockerhub=$([ -n "${DOCKERHUB_USERNAME}" ] && echo true || echo false)"
+          } >> "${GITHUB_OUTPUT}"
+
+          # Both registries receive the same build, so the manifest digest is
+          # identical in both and a tag@sha256:digest pin stays valid whichever
+          # one it is pulled from.
+          {
+            echo 'tags<<EOF'
+            echo "${ghcr_image}:${version}"
+            echo "${ghcr_image}:latest"
+            if [ -n "${DOCKERHUB_USERNAME}" ]; then
+              echo "docker.io/${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${version}"
+              echo "docker.io/${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest"
+            fi
+            echo 'EOF'
+          } >> "${GITHUB_OUTPUT}"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      # Build for the runner architecture first and load it into the local
+      # daemon, so the checks below run against a real container before
+      # anything is published.
+      - name: Build for the smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: baikal:smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the image
+        run: |
+          set -euo pipefail
+
+          echo "::group::PHP extensions Baikal requires"
+          docker run --rm baikal:smoke sh -c '
+            missing=""
+            for m in ctype curl date dom iconv json mbstring pcre simplexml \
+                     spl xmlreader xmlwriter pdo_sqlite; do
+              php -m | grep -qix "$m" || missing="$missing $m"
+            done
+            if [ -n "$missing" ]; then echo "MISSING:$missing"; exit 1; fi
+            echo "all required extensions present"
+          '
+          echo "::endgroup::"
+
+          echo "::group::Mail path, Baikal payload and backup tool"
+          docker run --rm baikal:smoke sh -c '
+            set -eu
+            php -r "echo \"sendmail_path=\", ini_get(\"sendmail_path\"), PHP_EOL;"
+            test -x /usr/sbin/sendmail
+            echo "sendmail -> $(readlink -f /usr/sbin/sendmail)"
+            test -f /var/www/baikal/html/dav.php && echo "html/dav.php present"
+            test -f /var/www/baikal/vendor/autoload.php && echo "vendor/autoload.php present"
+            sqlite3 --version
+          '
+          echo "::endgroup::"
+
+          echo "::group::Entrypoint writes /etc/msmtprc readably for Apache"
+          docker run --rm -e MSMTPRC="$(printf 'account default\nhost smtp.invalid\n')" \
+            baikal:smoke sh -c '
+              set -eu
+              stat -c "%a %U:%G %n" /etc/msmtprc
+              [ "$(stat -c "%a" /etc/msmtprc)" = "600" ]
+              su -s /bin/sh -c "head -n1 /etc/msmtprc >/dev/null" www-data
+              echo "readable by the Apache user"
+            '
+          # Unset means untouched: the image must not ship a relay of its own.
+          docker run --rm baikal:smoke sh -c '! test -e /etc/msmtprc'
+          echo "skipped when MSMTPRC is unset"
+          echo "::endgroup::"
+
+          echo "::group::.well-known redirects served by the shipped .htaccess"
+          docker run -d --name baikal-smoke -p 127.0.0.1:8080:80 baikal:smoke
+          trap 'docker rm -f baikal-smoke >/dev/null 2>&1 || true' EXIT
+          for _ in $(seq 1 30); do
+            curl -fsS -o /dev/null http://127.0.0.1:8080/ 2>/dev/null && break
+            sleep 1
+          done
+          for path in caldav carddav; do
+            status="$(curl -sS -o /dev/null -w '%{http_code}' \
+              "http://127.0.0.1:8080/.well-known/${path}")"
+            location="$(curl -sSI "http://127.0.0.1:8080/.well-known/${path}" \
+              | sed -n 's/^[Ll]ocation: *//p' | tr -d '\r')"
+            echo ".well-known/${path}: ${status} -> ${location}"
+            [ "${status}" = "308" ]
+            case "${location}" in */dav.php) ;; *) exit 1 ;; esac
+          done
+          echo "::endgroup::"
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Docker Hub is for discoverability only - GHCR stays authoritative for
+      # deployments. Missing credentials therefore skip it instead of failing
+      # the build.
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request' && steps.meta.outputs.push_dockerhub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summarise
+        if: github.event_name != 'pull_request'
+        run: |
+          {
+            echo "### Published Baikal ${{ steps.meta.outputs.version }}"
+            echo
+            echo "Pin it as \`tag@sha256:digest\`, never as a bare digest -"
+            echo "Dependabot never updates a digest that has no tag beside it."
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.ghcr_image }}:${{ steps.meta.outputs.version }}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
