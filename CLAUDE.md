@@ -120,12 +120,28 @@ Ein neu gebautes `latest` heißt nicht neue App-Version. Dafür
 `org.opencontainers.image.version` lesen; das Label wird hier aus dem ARG
 gesetzt, damit es nicht lügt.
 
-## Das Package stellt Daniel selbst auf public
+## Das GHCR-Package ist public — und bleibt es
 
-Ein GHCR-Package, das public war, kann nicht wieder private werden. Diesen
-Schritt nicht vorschlagen und nicht ausführen — er passiert von Hand, nach dem
-ersten grünen Build. Ebenso: nichts pushen, ohne vorher zu zeigen, was im
-Commit steckt.
+Seit dem ersten Build ist es public, und ein public Package kann nicht wieder
+private werden. Also nicht versuchen, das zurückzudrehen, und für den Pull
+keine Registry-Credentials einbauen: dass die Docker-VM ohne auskommt, ist der
+Grund für diese Entscheidung.
+
+Sichtbarkeit anonym prüfen statt vermuten — die Package-Seite auf GitHub
+beweist nichts, weil der Owner sie immer sieht, und ein lokaler `docker pull`
+kann auf gespeicherten Credentials laufen:
+
+```sh
+TOKEN=$(curl -s "https://ghcr.io/token?scope=repository%3Adaniel-rose%2Fbaikal%3Apull&service=ghcr.io" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer ${TOKEN}" \
+  -H "Accept: application/vnd.oci.image.index.v1+json" \
+  https://ghcr.io/v2/daniel-rose/baikal/manifests/0.12.1
+```
+
+`200` heißt public. Nebenbei: `gh api user/packages/...` hilft hier nicht, dem
+Standard-Token fehlt der `read:packages`-Scope.
+
+Nichts pushen, ohne vorher zu zeigen, was im Commit steckt.
 
 Der Package-Name ist `baikal`, nicht der Repo-Name — die Pull-Referenz soll
 `ghcr.io/<owner>/baikal` lauten (`IMAGE_NAME` in `build.yml`).
