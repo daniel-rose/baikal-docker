@@ -66,6 +66,11 @@ danielrose85/baikal:latest
 Both receive the same build, so the manifest digest is identical in both and a
 pin stays valid whichever registry it is pulled from.
 
+GHCR needs no configuration - the workflow authenticates with `GITHUB_TOKEN`.
+Docker Hub needs a repository variable `DOCKERHUB_USERNAME` and a repository
+secret `DOCKERHUB_TOKEN`; without them the build skips Docker Hub instead of
+failing, which is also what a fork gets.
+
 **Pin as `tag@sha256:digest`, never as a bare digest.** A digest on its own is
 never updated by Dependabot - it needs a tag beside it to recognise the
 reference at all.

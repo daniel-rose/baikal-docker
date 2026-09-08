@@ -15,8 +15,18 @@ Beispiele ausschließlich mit Platzhaltern: `<smtp-host>`, `<lan-ip>`,
 
 Freigegeben sind nur die beiden Image-Namen, die man zum Pullen braucht:
 `ghcr.io/daniel-rose/baikal` und `danielrose85/baikal`. In den Workflows
-trotzdem nie hartkodieren, sondern `github.repository_owner` bzw. das Secret
-`DOCKERHUB_USERNAME`.
+trotzdem nie hartkodieren, sondern `github.repository_owner` bzw. die Variable
+`vars.DOCKERHUB_USERNAME`.
+
+Dieses Repo braucht **lokal keine Credentials** — `docker build` und
+`docker run` kommen ohne aus, gepusht wird nur aus Actions. Also kein
+`.env`, kein `direnv`, keine `.dist`-Vorlage; es gäbe nichts zu füllen.
+Genau zwei Werte liegen in GitHub: `vars.DOCKERHUB_USERNAME` (Variable, weil
+der Namespace Teil des öffentlichen Image-Namens ist und als Secret nur die
+Logs zu `docker.io/***/baikal` maskieren würde) und
+`secrets.DOCKERHUB_TOKEN` (Secret). GHCR braucht nichts davon, dort genügt
+`GITHUB_TOKEN`. Der einzige echte Laufzeit-Secret ist `MSMTPRC`, und der
+gehört ins Deploy-Repo, nicht hierher.
 
 Eine public Git-History ist eine Einbahnstraße. Vor jedem Commit den Baum
 gegen IP-Muster, Mailadress-Muster und private Hostnamen greppen.
