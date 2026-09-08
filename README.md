@@ -30,7 +30,7 @@ user take over the admin interface by renaming a calendar.
 
 Building is cheap, because the release archive is deploy-ready: it ships
 `vendor/` including `autoload.php`, so there is **no Composer step**, and every
-extension Baïkal needs is already in `php:8.3-apache` with `pdo_sqlite`
+extension Baïkal needs is already in `php:8.5-apache` with `pdo_sqlite`
 compiled in, so there is **no extension build**. The whole build is a verified
 download and an unzip.
 
@@ -38,7 +38,7 @@ download and an unzip.
 
 | | |
 |---|---|
-| Base | `php:8.3-apache`, pinned as `tag@sha256:digest` |
+| Base | `php:8.5-apache`, pinned as `tag@sha256:digest` - the `FROM` line is authoritative |
 | Baïkal | 0.12.1, downloaded from the upstream release and checked against `BAIKAL_SHA256` |
 | `msmtp`, `msmtp-mta` | `msmtp-mta` provides `/usr/sbin/sendmail`, PHP's default `sendmail_path`, so sabre/dav's `IMipPlugin` sends invitations with no `php.ini` change |
 | Database backend | **SQLite only.** `pdo_sqlite` is compiled into the base image; `pdo_mysql` and `pdo_pgsql` are not installed |
@@ -241,8 +241,9 @@ docker rm -f baikal-check
    behind on updates is visible from outside.
 4. **linux/arm64 is built and smoke-tested under emulation**, not on arm64
    hardware.
-5. **The pinned base image is PHP 8.3**, whose security support ends at the end
-   of 2027. That is the runway before it has to move.
+5. **The pinned base image is PHP 8.5**, which has active support until
+   31 December 2027 and security support until 31 December 2029. That is the
+   runway before it has to move.
 6. **No configuration ships with the image.** `baikal.yaml` is yours to create
    or render; nothing here has an opinion about its contents.
 

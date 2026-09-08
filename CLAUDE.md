@@ -66,7 +66,7 @@ weitergewandert ist.
 ## Kein Composer, keine Extension-Builds
 
 Das Release-Archiv bringt `vendor/` samt `autoload.php` mit, und alle nötigen
-Extensions sind in `php:8.3-apache` enthalten (`pdo_sqlite` ist per
+Extensions sind in `php:8.5-apache` enthalten (`pdo_sqlite` ist per
 `--with-pdo-sqlite=/usr` einkompiliert). Wer hier `composer install` oder
 `docker-php-ext-install` einbaut, verlängert den Build um Minuten und riskiert
 den arm64-Zweig, ohne etwas zu gewinnen.
@@ -171,10 +171,35 @@ docker run -d --name t -p 127.0.0.1:8080:80 baikal:test && curl -sSI http://127.
 ```
 
 Erwartung: alle Extensions vorhanden, `/usr/sbin/sendmail -t -i`,
-`600 www-data`, `308` mit `Location: …/dav.php`. Für den Vollbeweis das
-mitgelieferte Schema aus `Core/Resources/Db/SQLite/db.sql` in eine SQLite-Datei
-laden und eine gemountete `config/baikal.yaml` dazugeben — dann muss
-`/dav.php` mit `401` und `WWW-Authenticate: Basic` antworten.
+`600 www-data`, `308` mit `Location: …/dav.php`.
+
+### Der Vollbeweis, wenn das Basis-Image sich ändert
+
+Der Smoke-Test zeigt Build, Extensions und Redirects — er zeigt **nicht**, ob
+Baïkal auf einer neuen PHP-Version noch läuft. Dafür gibt es diesen Ablauf; er
+hat den Sprung auf PHP 8.5 entschieden:
+
+1. Schema aus `Core/Resources/Db/SQLite/db.sql` in eine SQLite-Datei laden,
+   `config/baikal.yaml` mit `configured_version` und `auth_realm` mounten,
+   beides `chown www-data`.
+2. Benutzer von Hand anlegen — `principals (uri='principals/<user>', email,
+   displayname)` und `users (username, digesta1)` mit
+   `digesta1 = md5("<user>:<realm>:<passwort>")`.
+3. Dann gegen `/dav.php` fahren: `OPTIONS` muss `calendar-auto-schedule` im
+   `DAV`-Header melden (sonst ist das RFC-6638-Plugin tot, und genau dafür gibt
+   es dieses Setup), authentifizierter `PROPFIND` `207`, `MKCALENDAR` `201`,
+   ein `PUT` mit VEVENT `201` und das `GET` danach `200` mit unveränderter
+   `SUMMARY`, falsches Passwort `401`, `/admin/` `200`.
+4. Zum Schluss `docker logs` auf `deprecat|fatal|uncaught|warning` prüfen —
+   muss 0 ergeben.
+
+Für `-u user:pass` bei `curl` den Authorization-Header selbst setzen
+(`printf '%s:%s' u p | base64`) und `</dev/null` anhängen: sonst fragt curl
+interaktiv nach dem Passwort und der Lauf hängt.
+
+Ein Basis-Image-Bump ist nie nur die `FROM`-Zeile: die README nennt die
+Version in der Prosa, in der Tabellenzeile „Base" und bei „Known limitations"
+samt Support-Enddatum. Datum bei php.net nachsehen, nicht schätzen.
 
 Workflows nicht nur nach Augenmaß: YAML mit `ruby -ryaml` laden (PyYAML fehlt
 auf dieser Maschine), das `run`-Skript herausziehen und mit `bash -n` prüfen.
