@@ -59,6 +59,12 @@ Extensions sind in `php:8.3-apache` enthalten (`pdo_sqlite` ist per
 `docker-php-ext-install` einbaut, verlängert den Build um Minuten und riskiert
 den arm64-Zweig, ohne etwas zu gewinnen.
 
+Folge davon: **das Image kann nur Baïkals SQLite-Backend.** `pdo_mysql` und
+`pdo_pgsql` fehlen, `mysqlnd` in `php -m` ist nur die Treiber-Bibliothek und
+kein PDO-Treiber. Eine Bitte nach MySQL/PostgreSQL ist also ein
+Extension-Build und widerspricht dieser Regel — nicht stillschweigend
+einbauen, sondern die Konsequenz nennen.
+
 ## Der Vhost hält sich aus der `.htaccess` raus
 
 Die mitgelieferte `html/.htaccess` macht die 308-Redirects für
@@ -143,3 +149,7 @@ komplett durchspielen, inklusive Dedupe-Zweig.
 - **Conventional Commits**, kein `Co-Authored-By`.
 - Keine Dateien löschen ohne ausdrückliche Bestätigung.
 - Actions per Major-Tag (`actions/checkout@v5`); Dependabot hält sie aktuell.
+- In Beschreibungstexten, die von Hand gepflegt werden (Docker-Hub-Description,
+  Image-`description`-Label), keine Versionsnummern — weder Baïkals noch die
+  von PHP. Sie veralten beim ersten Bump, und niemand denkt daran. Versionen
+  gehören ins `image.version`-Label, das aus dem ARG kommt.

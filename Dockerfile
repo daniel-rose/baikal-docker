@@ -20,7 +20,7 @@ ARG BAIKAL_SHA256=0449abb72b151d39d9c08c63cb83a05d9e9adb065b1165ef6786b0b6a13d20
 # The archive also ships the GPL-3 text, which is why GitHub reports 0.12.1 as
 # GPL-3.0; the headers are the actual grant, so they win here.
 LABEL org.opencontainers.image.title="Baikal" \
-      org.opencontainers.image.description="Baikal CalDAV and CardDAV server on php:8.3-apache, with msmtp so scheduling invitations are delivered" \
+      org.opencontainers.image.description="Baikal CalDAV and CardDAV server on PHP and Apache, SQLite backend, with msmtp so scheduling invitations are delivered" \
       org.opencontainers.image.version="${BAIKAL_VERSION}" \
       org.opencontainers.image.source="https://github.com/daniel-rose/baikal-docker" \
       org.opencontainers.image.licenses="GPL-2.0-or-later"
