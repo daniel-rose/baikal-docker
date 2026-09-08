@@ -41,6 +41,7 @@ download and an unzip.
 | Base | `php:8.3-apache`, pinned as `tag@sha256:digest` |
 | Baïkal | 0.12.1, downloaded from the upstream release and checked against `BAIKAL_SHA256` |
 | `msmtp`, `msmtp-mta` | `msmtp-mta` provides `/usr/sbin/sendmail`, PHP's default `sendmail_path`, so sabre/dav's `IMipPlugin` sends invitations with no `php.ini` change |
+| Database backend | **SQLite only.** `pdo_sqlite` is compiled into the base image; `pdo_mysql` and `pdo_pgsql` are not installed |
 | `sqlite3` | For consistent backups: a plain file copy of a live SQLite database can be torn, `.backup` cannot |
 | Apache modules | `rewrite` and `expires` enabled, `alias` on by default - the three the shipped `html/.htaccess` uses |
 | DocumentRoot | `/var/www/baikal/html`, with `AllowOverride All` |
@@ -221,17 +222,21 @@ docker rm -f baikal-check
 
 ## Known limitations
 
-1. **No brute-force protection on the DAV login.** Upstream has none, and this
+1. **Baïkal's `mysql` and `pgsql` backends do not work here.** Only
+   `pdo_sqlite` is present, so either one fails at runtime with "could not
+   find driver". Supporting them would mean the extension build this image
+   deliberately does without.
+2. **No brute-force protection on the DAV login.** Upstream has none, and this
    image adds none. If the endpoint is reachable from the internet, rate-limit
    it in front, and use long random passwords with no self-registration.
-2. **The version is discoverable.** sabre/dav sets `X-Sabre-Version` on every
+3. **The version is discoverable.** sabre/dav sets `X-Sabre-Version` on every
    response (`$exposeVersion = true`, with no configuration switch), so falling
    behind on updates is visible from outside.
-3. **linux/arm64 is built and smoke-tested under emulation**, not on arm64
+4. **linux/arm64 is built and smoke-tested under emulation**, not on arm64
    hardware.
-4. **PHP 8.3 has security support until the end of 2027.** That is the runway
-   before the base image has to move.
-5. **No configuration ships with the image.** `baikal.yaml` is yours to create
+5. **The pinned base image is PHP 8.3**, whose security support ends at the end
+   of 2027. That is the runway before it has to move.
+6. **No configuration ships with the image.** `baikal.yaml` is yours to create
    or render; nothing here has an opinion about its contents.
 
 ## License
