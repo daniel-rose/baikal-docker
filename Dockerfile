@@ -15,15 +15,16 @@ ARG BAIKAL_SHA256=0449abb72b151d39d9c08c63cb83a05d9e9adb065b1165ef6786b0b6a13d20
 # version label still names the old release is exactly how the community image
 # hid the fact that it had not moved in thirteen months.
 #
-# The licence expression comes from the source headers in the release, which
-# grant "version 2 of the License, or (at your option) any later version".
-# The archive also ships the GPL-3 text, which is why GitHub reports 0.12.1 as
-# GPL-3.0; the headers are the actual grant, so they win here.
+# The licence expression is upstream's own declaration: composer.json at the
+# release tag says "GPL-3.0-only", and the archive ships the GPL-3 text. Some
+# source headers still carry 2013 boilerplate granting "version 2 of the
+# License, or (at your option) any later version" - stale, and not what the
+# project declares today.
 LABEL org.opencontainers.image.title="Baikal" \
       org.opencontainers.image.description="Baikal CalDAV and CardDAV server on PHP and Apache, SQLite backend, with msmtp so scheduling invitations are delivered" \
       org.opencontainers.image.version="${BAIKAL_VERSION}" \
       org.opencontainers.image.source="https://github.com/daniel-rose/baikal-docker" \
-      org.opencontainers.image.licenses="GPL-2.0-or-later"
+      org.opencontainers.image.licenses="GPL-3.0-only"
 
 # msmtp-mta provides /usr/sbin/sendmail, which is PHP's default sendmail_path,
 # so sabre/dav's IMipPlugin sends invitations without any php.ini change.

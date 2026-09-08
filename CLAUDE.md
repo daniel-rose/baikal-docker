@@ -97,9 +97,24 @@ Relay-Passwort mit Backslash muss unverändert ankommen.
 Nicht an Issues, Mailinglisten oder Blogposts — die sind bei diesem Projekt
 nachweislich veraltet. Bei jedem Versions-Sprung im entpackten Archiv
 nachsehen: neue Extension-Anforderungen, Änderungen an `html/.htaccess`,
-Lizenzangaben. Beispiel für den Nutzen: die Source-Header gewähren „GPL v2 or
-any later version", während das Archiv den GPL-3-Text mitliefert — GitHub
-zeigt nur letzteres.
+Lizenzangaben.
+
+Das Archiv ist dabei nicht die einzige Quelle, und eine einzelne Quelle reicht
+nicht. Zwei Lehren aus dem ersten Durchgang:
+
+- **`composer.json` liegt nicht im Release-Archiv**, nur im Repo. Dort stehen
+  aber die verbindlichen Angaben — `"php": "^8.2"` und
+  `"license": "GPL-3.0-only"`. Holen mit
+  `gh api "repos/sabre-io/Baikal/contents/composer.json?ref=<tag>" --jq .content | base64 -d`
+  (URL quoten, sonst frisst zsh das `?ref=`).
+- **Immer den Tag, nie master.** master trägt schon die nächste Version; ein
+  Commit ohne Tag sagt nichts über das, was das Image ausliefert.
+  `gh api repos/sabre-io/Baikal/commits/<sha>/branches-where-head` klärt das.
+
+Widersprechen sich Quellen, gewinnt die maschinenlesbare Deklaration am Tag,
+nicht ein Kommentarkopf: Baïkals Source-Header gewähren noch „GPL v2 or any
+later version" (Boilerplate von 2013), deklariert und ausgeliefert wird aber
+GPL-3.0-only. Das Label sagt deshalb `GPL-3.0-only`.
 
 Ein neu gebautes `latest` heißt nicht neue App-Version. Dafür
 `org.opencontainers.image.version` lesen; das Label wird hier aus dem ARG

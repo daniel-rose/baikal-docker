@@ -244,7 +244,6 @@ docker rm -f baikal-check
 The files in this repository - `Dockerfile`, Apache configuration, entrypoint
 and workflows - are MIT licensed; see [LICENSE](LICENSE).
 
-The image content is not. Baïkal is distributed under the GNU General Public
-License: its source headers grant "version 2 of the License, or (at your
-option) any later version", and the release archive ships the GPL-3 text. PHP,
-Apache, msmtp and SQLite carry their own licenses.
+The image content is not. Baïkal declares `GPL-3.0-only` in its `composer.json`
+at the release tag and ships the GPL-3 text in the archive. PHP, Apache, msmtp
+and SQLite carry their own licenses.
