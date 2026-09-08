@@ -42,6 +42,7 @@ download and an unzip.
 | Baïkal | 0.12.1, downloaded from the upstream release and checked against `BAIKAL_SHA256` |
 | `msmtp`, `msmtp-mta` | `msmtp-mta` provides `/usr/sbin/sendmail`, PHP's default `sendmail_path`, so sabre/dav's `IMipPlugin` sends invitations with no `php.ini` change |
 | Database backend | **SQLite only.** `pdo_sqlite` is compiled into the base image; `pdo_mysql` and `pdo_pgsql` are not installed |
+| PHP configuration | `php.ini-production` installed, plus `expose_php = Off`. The base image ships no `php.ini` at all, which would leave `display_errors` on and print filesystem paths into responses |
 | `sqlite3` | For consistent backups: a plain file copy of a live SQLite database can be torn, `.backup` cannot |
 | Apache modules | `rewrite` and `expires` enabled, `alias` on by default - the three the shipped `html/.htaccess` uses |
 | DocumentRoot | `/var/www/baikal/html`, with `AllowOverride All` |
@@ -246,6 +247,12 @@ docker rm -f baikal-check
    runway before it has to move.
 6. **No configuration ships with the image.** `baikal.yaml` is yours to create
    or render; nothing here has an opinion about its contents.
+7. **An instance without a database answers `/dav.php` with HTTP 200** and a
+   Baïkal stack trace in the body ("no connection to a database is
+   available"), disclosing filesystem paths. Baïkal prints that itself, so
+   `display_errors = Off` does not suppress it. Two consequences: create the
+   database before the endpoint is reachable, and never health-check this
+   service on the status code alone - a broken instance looks healthy.
 
 ## License
 

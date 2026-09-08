@@ -77,6 +77,19 @@ kein PDO-Treiber. Eine Bitte nach MySQL/PostgreSQL ist also ein
 Extension-Build und widerspricht dieser Regel — nicht stillschweigend
 einbauen, sondern die Konsequenz nennen.
 
+## Ohne Datenbank antwortet `/dav.php` mit 200
+
+Gemessen: liegt eine gerenderte `baikal.yaml` vor, aber keine
+`Specific/db/db.sqlite`, liefert `/dav.php` **HTTP 200** und im Body einen
+Stacktrace samt Dateisystempfaden („no connection to a database is
+available"). Baïkal druckt den selbst in `Framework::bootstrap`, deshalb hilft
+`display_errors = Off` dagegen nicht — deswegen trotzdem gesetzt, denn für
+PHP-eigene Fehler greift es, und `expose_php = Off` entfernt `X-Powered-By`.
+
+Folgen, die man nicht wegkonfigurieren kann: die Datenbank muss existieren,
+bevor der Endpunkt erreichbar ist, und ein Healthcheck darf sich nie auf den
+Statuscode allein stützen. Eine kaputte Instanz sieht damit gesund aus.
+
 ## Der Vhost hält sich aus der `.htaccess` raus
 
 Die mitgelieferte `html/.htaccess` macht die 308-Redirects für

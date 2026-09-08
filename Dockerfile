@@ -67,6 +67,13 @@ RUN set -eux; \
 COPY apache/baikal.conf /etc/apache2/sites-available/baikal.conf
 RUN a2ensite baikal
 
+# The official PHP images deliberately ship no php.ini, which leaves
+# display_errors on. On an endpoint that is reachable from the internet that
+# turns any PHP error into a response body with filesystem paths in it, so
+# install the production template and log instead of print.
+RUN mv "${PHP_INI_DIR}/php.ini-production" "${PHP_INI_DIR}/php.ini"
+COPY php/baikal.ini "${PHP_INI_DIR}/conf.d/zz-baikal.ini"
+
 # --chmod rather than a following RUN: the mode is then independent of whatever
 # the checkout left on the file.
 COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
