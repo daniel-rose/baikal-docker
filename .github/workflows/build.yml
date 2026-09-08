@@ -19,7 +19,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # The Dockerfile is the single source of truth for the version. A second
       # copy in this workflow would drift, and the drift would surface only as
