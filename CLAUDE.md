@@ -51,6 +51,18 @@ Nie der Digest allein. Dependabot zieht einen Digest nur nach, wenn ein Tag
 dabeisteht; ohne Tag wird die Zeile stillschweigend nie aktualisiert. Kein
 `:latest` als Basis.
 
+**Jeder Build erzeugt einen neuen Index-Digest, auch ohne inhaltliche
+Änderung** — gemessen: ein Docs-only-Commit ergab einen neuen Digest, weil die
+Provenance-Attestation Commit-SHA und Run-ID trägt. Dazu ist auch der Inhalt
+nicht reproduzierbar: bei zwei Builds war das amd64-Manifest byte-identisch,
+das arm64-Manifest nicht, weil der Cache dort nicht griff und `apt-get install`
+holt, was der Mirror gerade ausliefert.
+
+Daraus folgt: einem bestehenden Pin nicht hinterherlaufen. Alte Manifeste
+bleiben abrufbar, der Pin bleibt gültig. Neu gepinnt wird, wenn die
+Baïkal-Version oder eine Image-Eigenschaft sich ändert — nicht weil `latest`
+weitergewandert ist.
+
 ## Kein Composer, keine Extension-Builds
 
 Das Release-Archiv bringt `vendor/` samt `autoload.php` mit, und alle nötigen
@@ -179,7 +191,11 @@ komplett durchspielen, inklusive Dedupe-Zweig.
   Workflow-Skripten. Konstanten am Dateikopf, eine Aufgabe pro Funktion.
 - **Conventional Commits**, kein `Co-Authored-By`.
 - Keine Dateien löschen ohne ausdrückliche Bestätigung.
-- Actions per Major-Tag (`actions/checkout@v5`); Dependabot hält sie aktuell.
+- Actions per Major-Tag (`actions/checkout@v7`); Dependabot hält sie aktuell.
+  Mehrere Action-Bumps hintereinander mergen kollidiert, sobald zwei davon auf
+  benachbarten Zeilen stehen (`setup-qemu` und `setup-buildx`) — dann nicht von
+  Hand nachziehen, sondern `gh pr comment <nr> --body "@dependabot rebase"`
+  und den grünen Check abwarten.
 - In Beschreibungstexten, die von Hand gepflegt werden (Docker-Hub-Description,
   Image-`description`-Label), keine Versionsnummern — weder Baïkals noch die
   von PHP. Sie veralten beim ersten Bump, und niemand denkt daran. Versionen

@@ -76,6 +76,13 @@ failing, which is also what a fork gets.
 never updated by Dependabot - it needs a tag beside it to recognise the
 reference at all.
 
+A rebuild produces a **new index digest even when the image did not change**:
+the provenance attestation records the commit and the workflow run, and an
+`apt-get install` layer is not reproducible either. An existing pin stays
+valid - old manifests are not deleted - so there is no need to chase the newest
+digest. Re-pin when the Baïkal version or an image property changes, not
+because `latest` moved.
+
 ```sh
 docker buildx imagetools inspect ghcr.io/daniel-rose/baikal:0.12.1
 ```
