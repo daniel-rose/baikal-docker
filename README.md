@@ -139,14 +139,10 @@ Two volumes, and both matter:
 
 ### The configuration file has to be writable
 
-Mount `config/` writable, not `:ro`. Baïkal writes `configured_version` into
-`baikal.yaml` through its upgrade controller, and a read-only mount breaks the
-upgrade path. The directory must be writable by the Apache user, uid 33.
-
-Keep `configured_version` in step with the Baïkal version of the pinned image.
-If it lags behind, Baïkal shows the upgrade wizard on every request. That makes
-a version bump two coupled changes: the new digest and the new
-`configured_version`.
+Mount `config/` writable, not `:ro`. Baïkal's upgrade wizard writes
+`configured_version` into `baikal.yaml`, and a read-only mount breaks the
+upgrade path - see [Upgrading an installation](#upgrading-an-installation).
+The directory must be writable by the Apache user, uid 33.
 
 ### Sending invitations
 
@@ -195,6 +191,27 @@ docker exec <container> rm /var/www/baikal/Specific/db/backup.sqlite
 Back up `config/baikal.yaml` with it. It carries the admin password hash, which
 is salted with `auth_realm`, and the database encryption key.
 
+## Upgrading an installation
+
+**Never move `configured_version` by hand.** It is how Baïkal knows which
+database migrations are still due: the upgrade wizard runs every migration
+between the configured and the running version, and only then writes the new
+value. Set it yourself and those migrations are skipped for good - nothing
+fails at that moment, the fixes a release makes to existing data just never
+arrive.
+
+1. Back up the database and `baikal.yaml`, as above.
+2. Switch to the new image.
+3. Open `/admin/` right away and confirm the upgrade. The wizard asks for no
+   login.
+
+Between steps 2 and 3, Baïkal redirects every request to the wizard,
+`/dav.php` included, so no client can sync. Do them in one go.
+
+If you render `baikal.yaml` from a template, carry the new
+`configured_version` into the template after the wizard has run. Otherwise the
+next deploy turns it back, and the wizard is back on every request.
+
 ## Raising the Baïkal version
 
 `BAIKAL_VERSION` and `BAIKAL_SHA256` are build arguments in the `Dockerfile`
@@ -211,9 +228,10 @@ deliberately does not raise the version: no bot can compute the checksum for a
 release it has not downloaded, and a pull request with a stale checksum is
 worse than a reminder.
 
-Check new releases for changed extension requirements and for changes to
-`html/.htaccess` **against the source in the archive**, not against issues or
-blog posts.
+Check new releases for changed extension requirements, for changes to
+`html/.htaccess` and for new migrations in
+`Core/Frameworks/BaikalAdmin/Controller/Install/VersionUpgrade.php` **against
+the source in the archive**, not against issues or blog posts.
 
 ## Verifying an image yourself
 

@@ -71,9 +71,9 @@ jobs:
 
           - [ ] Compute the checksum of the new archive, with the commands below.
           - [ ] Raise \`BAIKAL_VERSION\` **and** \`BAIKAL_SHA256\` in the Dockerfile together. Either one alone fails the build, which is the intended behaviour.
-          - [ ] Check the release for new PHP extension requirements and for changes to \`html/.htaccess\` - against the source in the archive, not against issues or blog posts.
+          - [ ] Check the release for new PHP extension requirements, for changes to \`html/.htaccess\` and for new migrations in \`Core/Frameworks/BaikalAdmin/Controller/Install/VersionUpgrade.php\` - against the source in the archive, not against issues or blog posts.
           - [ ] Let the build publish the image, then pin the new \`tag@sha256:digest\` in the consuming deployment repository.
-          - [ ] In that same change, move \`configured_version\` in \`baikal.yaml\` to ${latest}. If it lags behind the image, Baikal shows the upgrade wizard after every sync.
+          - [ ] Deploy it as the README section "Upgrading an installation" describes: back up, switch the image, confirm the upgrade in \`/admin/\` right away. Do not move \`configured_version\` by hand - that skips the release's database migrations for good.
 
           Checksum:
 
