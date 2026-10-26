@@ -180,7 +180,7 @@ docker build -t baikal:test .
 docker run --rm baikal:test php -m                      # die 12 + pdo_sqlite
 docker run --rm baikal:test php -r 'echo ini_get("sendmail_path");'
 docker run --rm -e MSMTPRC="account default" baikal:test stat -c '%a %U' /etc/msmtprc
-docker run -d --name t -p 127.0.0.1:8080:80 baikal:test && curl -sSI http://127.0.0.1:8080/.well-known/caldav
+docker run -d --name baikal-smoke -p 127.0.0.1:8080:80 baikal:test && curl -sSI http://127.0.0.1:8080/.well-known/caldav
 ```
 
 Erwartung: alle Extensions vorhanden, `/usr/sbin/sendmail -t -i`,

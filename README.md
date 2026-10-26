@@ -8,9 +8,16 @@ CardDAV server built on sabre/dav.
 are actually delivered and the relay credentials never live in the image.
 Everything else is the release archive as published, unpacked and served.
 
+To try it out:
+
 ```sh
-docker pull ghcr.io/daniel-rose/baikal:0.12.1
+docker pull ghcr.io/daniel-rose/baikal:latest
 ```
+
+For anything that keeps running, pin a version instead - see
+[Tags, and how to pin them](#tags-and-how-to-pin-them). The versions on offer
+are listed on the
+[package page](https://github.com/daniel-rose/baikal-docker/pkgs/container/baikal).
 
 ---
 
@@ -39,7 +46,7 @@ download and an unzip.
 | | |
 |---|---|
 | Base | `php:8.5-apache`, pinned as `tag@sha256:digest` - the `FROM` line is authoritative |
-| Baïkal | 0.12.1, downloaded from the upstream release and checked against `BAIKAL_SHA256` |
+| Baïkal | The release named by `BAIKAL_VERSION` in the `Dockerfile`, downloaded from upstream and checked against `BAIKAL_SHA256`. The image reports it as `org.opencontainers.image.version` |
 | `msmtp`, `msmtp-mta` | `msmtp-mta` provides `/usr/sbin/sendmail`, PHP's default `sendmail_path`, so sabre/dav's `IMipPlugin` sends invitations with no `php.ini` change |
 | Database backend | **SQLite only.** `pdo_sqlite` is compiled into the base image; `pdo_mysql` and `pdo_pgsql` are not installed |
 | PHP configuration | `php.ini-production` installed, plus `expose_php = Off`. The base image ships no `php.ini` at all, which would leave `display_errors` on and print filesystem paths into responses |
@@ -59,11 +66,13 @@ Every build is pushed to two registries. GHCR is authoritative; Docker Hub
 exists so the image is findable where people look for one.
 
 ```
-ghcr.io/daniel-rose/baikal:0.12.1
+ghcr.io/daniel-rose/baikal:<version>
 ghcr.io/daniel-rose/baikal:latest
-danielrose85/baikal:0.12.1
+danielrose85/baikal:<version>
 danielrose85/baikal:latest
 ```
+
+`<version>` is the Baïkal release the image ships, spelled as upstream tags it.
 
 Both receive the same build, so the manifest digest is identical in both and a
 pin stays valid whichever registry it is pulled from.
@@ -85,7 +94,7 @@ digest. Re-pin when the Baïkal version or an image property changes, not
 because `latest` moved.
 
 ```sh
-docker buildx imagetools inspect ghcr.io/daniel-rose/baikal:0.12.1
+docker buildx imagetools inspect ghcr.io/daniel-rose/baikal:<version>
 ```
 
 ## Running it
@@ -93,7 +102,7 @@ docker buildx imagetools inspect ghcr.io/daniel-rose/baikal:0.12.1
 ```yaml
 services:
   baikal:
-    image: ghcr.io/daniel-rose/baikal:0.12.1@sha256:<digest>
+    image: ghcr.io/daniel-rose/baikal:<version>@sha256:<digest>
     restart: unless-stopped
     environment:
       # Rendered to /etc/msmtprc (0600, owned by the Apache user) at startup.
@@ -130,14 +139,10 @@ Two volumes, and both matter:
 
 ### The configuration file has to be writable
 
-Mount `config/` writable, not `:ro`. Baïkal writes `configured_version` into
-`baikal.yaml` through its upgrade controller, and a read-only mount breaks the
-upgrade path. The directory must be writable by the Apache user, uid 33.
-
-Keep `configured_version` in step with the Baïkal version of the pinned image.
-If it lags behind, Baïkal shows the upgrade wizard on every request. That makes
-a version bump two coupled changes: the new digest and the new
-`configured_version`.
+Mount `config/` writable, not `:ro`. Baïkal's upgrade wizard writes
+`configured_version` into `baikal.yaml`, and a read-only mount breaks the
+upgrade path - see [Upgrading an installation](#upgrading-an-installation).
+The directory must be writable by the Apache user, uid 33.
 
 ### Sending invitations
 
@@ -186,6 +191,27 @@ docker exec <container> rm /var/www/baikal/Specific/db/backup.sqlite
 Back up `config/baikal.yaml` with it. It carries the admin password hash, which
 is salted with `auth_realm`, and the database encryption key.
 
+## Upgrading an installation
+
+**Never move `configured_version` by hand.** It is how Baïkal knows which
+database migrations are still due: the upgrade wizard runs every migration
+between the configured and the running version, and only then writes the new
+value. Set it yourself and those migrations are skipped for good - nothing
+fails at that moment, the fixes a release makes to existing data just never
+arrive.
+
+1. Back up the database and `baikal.yaml`, as above.
+2. Switch to the new image.
+3. Open `/admin/` right away and confirm the upgrade. The wizard asks for no
+   login.
+
+Between steps 2 and 3, Baïkal redirects every request to the wizard,
+`/dav.php` included, so no client can sync. Do them in one go.
+
+If you render `baikal.yaml` from a template, carry the new
+`configured_version` into the template after the wizard has run. Otherwise the
+next deploy turns it back, and the wizard is back on every request.
+
 ## Raising the Baïkal version
 
 `BAIKAL_VERSION` and `BAIKAL_SHA256` are build arguments in the `Dockerfile`
@@ -202,14 +228,15 @@ deliberately does not raise the version: no bot can compute the checksum for a
 release it has not downloaded, and a pull request with a stale checksum is
 worse than a reminder.
 
-Check new releases for changed extension requirements and for changes to
-`html/.htaccess` **against the source in the archive**, not against issues or
-blog posts.
+Check new releases for changed extension requirements, for changes to
+`html/.htaccess` and for new migrations in
+`Core/Frameworks/BaikalAdmin/Controller/Install/VersionUpgrade.php` **against
+the source in the archive**, not against issues or blog posts.
 
 ## Verifying an image yourself
 
 ```sh
-IMAGE=ghcr.io/daniel-rose/baikal:0.12.1
+IMAGE=ghcr.io/daniel-rose/baikal:<version>
 
 # Every extension Baikal needs, and the version label
 docker run --rm "$IMAGE" php -m
