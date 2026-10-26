@@ -8,9 +8,16 @@ CardDAV server built on sabre/dav.
 are actually delivered and the relay credentials never live in the image.
 Everything else is the release archive as published, unpacked and served.
 
+To try it out:
+
 ```sh
-docker pull ghcr.io/daniel-rose/baikal:0.12.1
+docker pull ghcr.io/daniel-rose/baikal:latest
 ```
+
+For anything that keeps running, pin a version instead - see
+[Tags, and how to pin them](#tags-and-how-to-pin-them). The versions on offer
+are listed on the
+[package page](https://github.com/daniel-rose/baikal-docker/pkgs/container/baikal).
 
 ---
 
@@ -39,7 +46,7 @@ download and an unzip.
 | | |
 |---|---|
 | Base | `php:8.5-apache`, pinned as `tag@sha256:digest` - the `FROM` line is authoritative |
-| Baïkal | 0.12.1, downloaded from the upstream release and checked against `BAIKAL_SHA256` |
+| Baïkal | The release named by `BAIKAL_VERSION` in the `Dockerfile`, downloaded from upstream and checked against `BAIKAL_SHA256`. The image reports it as `org.opencontainers.image.version` |
 | `msmtp`, `msmtp-mta` | `msmtp-mta` provides `/usr/sbin/sendmail`, PHP's default `sendmail_path`, so sabre/dav's `IMipPlugin` sends invitations with no `php.ini` change |
 | Database backend | **SQLite only.** `pdo_sqlite` is compiled into the base image; `pdo_mysql` and `pdo_pgsql` are not installed |
 | PHP configuration | `php.ini-production` installed, plus `expose_php = Off`. The base image ships no `php.ini` at all, which would leave `display_errors` on and print filesystem paths into responses |
@@ -59,11 +66,13 @@ Every build is pushed to two registries. GHCR is authoritative; Docker Hub
 exists so the image is findable where people look for one.
 
 ```
-ghcr.io/daniel-rose/baikal:0.12.1
+ghcr.io/daniel-rose/baikal:<version>
 ghcr.io/daniel-rose/baikal:latest
-danielrose85/baikal:0.12.1
+danielrose85/baikal:<version>
 danielrose85/baikal:latest
 ```
+
+`<version>` is the Baïkal release the image ships, spelled as upstream tags it.
 
 Both receive the same build, so the manifest digest is identical in both and a
 pin stays valid whichever registry it is pulled from.
@@ -85,7 +94,7 @@ digest. Re-pin when the Baïkal version or an image property changes, not
 because `latest` moved.
 
 ```sh
-docker buildx imagetools inspect ghcr.io/daniel-rose/baikal:0.12.1
+docker buildx imagetools inspect ghcr.io/daniel-rose/baikal:<version>
 ```
 
 ## Running it
@@ -93,7 +102,7 @@ docker buildx imagetools inspect ghcr.io/daniel-rose/baikal:0.12.1
 ```yaml
 services:
   baikal:
-    image: ghcr.io/daniel-rose/baikal:0.12.1@sha256:<digest>
+    image: ghcr.io/daniel-rose/baikal:<version>@sha256:<digest>
     restart: unless-stopped
     environment:
       # Rendered to /etc/msmtprc (0600, owned by the Apache user) at startup.
@@ -209,7 +218,7 @@ blog posts.
 ## Verifying an image yourself
 
 ```sh
-IMAGE=ghcr.io/daniel-rose/baikal:0.12.1
+IMAGE=ghcr.io/daniel-rose/baikal:<version>
 
 # Every extension Baikal needs, and the version label
 docker run --rm "$IMAGE" php -m
