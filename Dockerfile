@@ -3,7 +3,7 @@
 # There is no official Baikal image. This one exists because the community
 # image has been stuck on 0.10.1 since 2025-07-31, which predates the 0.12.1
 # fix for an authenticated XSS in the admin interface.
-FROM php:8.5-apache@sha256:7cd25eb48f9763dfeabe8fda3939897aca2001802fadeafa1b602f26c735ef96
+FROM php:8.5-apache@sha256:08af36df144462d84c7f16190557eec06cb9f656882685610b712a15eec54d46
 
 # Raise these two together, always. The download is checked against
 # BAIKAL_SHA256, so a version bump carrying a stale checksum fails the build
